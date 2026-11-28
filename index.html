@@ -2,8 +2,21 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zilli 1.0 - Okul Zil Yönetim Sistemi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ZiLLi - Okul Zil Otomasyon Paneli</title>
+
+  <!-- PWA: Uygulama olarak yüklenebilirlik -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ZiLLi">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="application-name" content="ZiLLi">
+  <meta name="description" content="Okul zil programı yönetimi ve otomatik zil çalma paneli.">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
@@ -69,7 +82,7 @@
         <!-- Custom School Logo & Editable Title -->
         <div class="flex items-center gap-3">
           <div class="relative group cursor-pointer" title="Logoyu Değiştir" onclick="triggerLogoUpload()">
-            <img id="school-logo-img" src="https://placehold.co/100x100/2563eb/ffffff?text=OKUL" alt="Okul Logosu" class="w-10 h-10 rounded-xl object-cover border border-slate-700 shadow-md">
+            <img id="school-logo-img" src="icons/icon-192.png" alt="Okul Logosu" class="w-10 h-10 rounded-xl object-cover border border-slate-700 shadow-md">
             <div class="absolute inset-0 bg-black/60 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs transition-opacity">
               <i class="fa-solid fa-camera"></i>
             </div>
@@ -92,6 +105,11 @@
 
       <!-- Live Clock & Audio Test Controls -->
       <div class="flex items-center gap-2.5">
+        <button id="install-btn" onclick="installApp()" class="hidden px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-bold items-center gap-2 transition-all shadow-md">
+          <i class="fa-solid fa-download"></i>
+          <span>Uygulamayı Yükle</span>
+        </button>
+
         <button onclick="toggleFullscreen()" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-all shadow-md">
           <i class="fa-solid fa-expand"></i>
           <span>Tam Ekran Modu</span>
@@ -354,6 +372,41 @@
     <span id="toast-msg" class="text-xs font-medium">İşlem başarıyla gerçekleştirildi.</span>
   </div>
 
+  <!-- PWA: Service Worker kaydı ve yükleme istemi -->
+  <script>
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const b = document.getElementById('install-btn');
+      if (b) { b.classList.remove('hidden'); b.classList.add('flex'); }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      const b = document.getElementById('install-btn');
+      if (b) { b.classList.add('hidden'); b.classList.remove('flex'); }
+    });
+
+    async function installApp() {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      try { await deferredInstallPrompt.userChoice; } catch (e) {}
+      deferredInstallPrompt = null;
+      const b = document.getElementById('install-btn');
+      if (b) { b.classList.add('hidden'); b.classList.remove('flex'); }
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((err) => {
+          console.warn('Service worker kaydedilemedi:', err);
+        });
+      });
+    }
+  </script>
+
   <!-- APPLICATION LOGIC & AUDIO ENGINE -->
   <script>
     const defaultDaySchedule = [
@@ -410,7 +463,7 @@
 
     let appData = {
       schoolName: "Mudanya Dörtçelik Mesleki ve Teknik Anadolu Lisesi",
-      schoolLogo: "https://placehold.co/100x100/2563eb/ffffff?text=OKUL",
+      schoolLogo: "icons/icon-192.png",
       announcement: "Okulumuzda ders giriş ve çıkışlarında zaman aralıklarına dikkat edilmesi önemle rica olunur.",
       schedules: {
         0: JSON.parse(JSON.stringify(defaultDaySchedule)),
@@ -736,7 +789,7 @@
           if (parsed.schedules) appData.schedules = parsed.schedules;
           if (parsed.settings) appData.settings = { ...appData.settings, ...parsed.settings };
           if (parsed.schoolName) appData.schoolName = parsed.schoolName;
-          if (parsed.schoolLogo) appData.schoolLogo = parsed.schoolLogo;
+          if (parsed.schoolLogo && parsed.schoolLogo.indexOf('placehold.co') === -1) appData.schoolLogo = parsed.schoolLogo;
           if (parsed.announcement) appData.announcement = parsed.announcement;
         }
       } catch (e) {
